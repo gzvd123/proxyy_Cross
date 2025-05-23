@@ -1,18 +1,18 @@
-from flask import Flask, request, Response
-from flask_cors import CORS
+from flask import Flask, request
 import requests
 
 app = Flask(__name__)
-CORS(app)
 
-@app.route("/proxy")
+@app.route('/proxy')
 def proxy():
-    url = request.args.get("url")
+    url = request.args.get('url')
     if not url:
-        return "Missing url", 400
+        return "Missing URL", 400
+    headers = {"User-Agent": "Mozilla/5.0"}
+    r = requests.get(url, headers=headers)
+    return r.text
 
-    r = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'})
-    return Response(r.content, content_type=r.headers.get('Content-Type'))
-
-if __name__ == "__main__":
-    app.run()
+if __name__ == '__main__':
+    import os
+    port = int(os.environ.get('PORT', 10000))
+    app.run(host='0.0.0.0', port=port)
