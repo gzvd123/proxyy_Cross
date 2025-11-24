@@ -15,7 +15,11 @@
         <div>
           <p class="eyebrow">Inventory Merge Studio</p>
           <h1>Gộp nhanh các báo cáo tồn kho</h1>
+
           <p class="lead">Upload toàn bộ file Excel có chứa <code>{{ config.file_pattern }}</code>, hệ thống sẽ gộp và chuẩn hoá cột cho bạn với trải nghiệm UI cấp tập đoàn.</p>
+
+          <p class="lead">Upload toàn bộ file Excel có chứa <code>{{ config.file_pattern }}</code>, hệ thống sẽ gộp và chuẩn hoá cột cho bạn.</p>
+
         </div>
       </div>
       <div class="hero-meta">
@@ -33,14 +37,22 @@
     <main class="card">
       <div class="card-header">
         <h2>Tải file lên &amp; gộp</h2>
+
         <p>Chúng tôi tự động bỏ qua file tạm (~$), thêm cột còn thiếu với giá trị trống và hiển thị báo cáo sau khi gộp.</p>
       </div>
       <form id="upload-form" class="uploader" enctype="multipart/form-data">
         <label class="dropzone" for="file-input" id="dropzone">
+
+        <p>Chúng tôi tự động bỏ qua file tạm (~$) và thêm cột còn thiếu với giá trị trống.</p>
+      </div>
+      <form id="upload-form" class="uploader" enctype="multipart/form-data">
+        <label class="dropzone" for="file-input">
+
           <input id="file-input" type="file" name="files" accept=".xlsx,.xls" multiple>
           <div class="dropzone-copy">
             <p class="headline">Kéo thả hoặc chọn file Excel</p>
             <p class="sub">Hỗ trợ nhiều file cùng lúc • Tự động nhận biết sheet "{{ config.sheet_name }}"</p>
+
             <div class="pill">Kéo thả hàng loạt • Không giới hạn số lượng</div>
           </div>
         </label>
@@ -66,6 +78,11 @@
         </div>
 
         <button type="submit" class="primary" id="submit-btn">Gộp &amp; tải xuống</button>
+
+          </div>
+        </label>
+        <button type="submit" class="primary">Gộp &amp; tải xuống</button>
+
       </form>
       <div id="status" class="status" aria-live="polite"></div>
     </main>
@@ -79,6 +96,7 @@
     const form = document.getElementById('upload-form');
     const fileInput = document.getElementById('file-input');
     const statusBox = document.getElementById('status');
+nhance-program-with-gui-and-branding-i1d98m
     const dropzone = document.getElementById('dropzone');
     const fileCountEl = document.getElementById('file-count');
     const fileSizeEl = document.getElementById('file-size');
@@ -88,10 +106,12 @@
     const progressLabel = document.getElementById('progress-label');
     const submitBtn = document.getElementById('submit-btn');
 
+
     function setStatus(message, tone = 'info') {
       statusBox.textContent = message;
       statusBox.dataset.tone = tone;
     }
+
 
     function humanFileSize(bytes) {
       if (!bytes) return '0 KB';
@@ -144,16 +164,22 @@
       handleFiles(event.target.files);
     });
 
+
+
     async function handleSubmit(event) {
       event.preventDefault();
       if (!fileInput.files.length) {
         setStatus('Vui lòng chọn ít nhất một file Excel.', 'warn');
         return;
       }
+
       setStatus('Đang tải lên và gộp... ⏳', 'info');
       setProgress(15, 'Đang chuẩn bị file');
       submitBtn.disabled = true;
       submitBtn.textContent = 'Đang gộp...';
+
+      setStatus('Đang xử lý... ⏳', 'info');
+
       const formData = new FormData();
       for (const file of fileInput.files) {
         formData.append('files', file);
@@ -161,6 +187,7 @@
 
       try {
         const response = await fetch('/api/merge', { method: 'POST', body: formData });
+
         setProgress(45, 'Đang xử lý dữ liệu');
         if (!response.ok) {
           const payload = await response.json();
@@ -168,11 +195,18 @@
           submitBtn.disabled = false;
           submitBtn.textContent = 'Gộp & tải xuống';
           setProgress(0, 'Chưa bắt đầu');
+
+        if (!response.ok) {
+          const payload = await response.json();
+          setStatus(payload.error || 'Có lỗi xảy ra khi gộp file.', 'error');
+
           return;
         }
 
         const blob = await response.blob();
+
         setProgress(75, 'Đang tạo file kết quả');
+
         const filename = response.headers.get('Content-Disposition')?.split('filename=')[1]?.replace(/"/g, '') || '{{ config.output_filename }}';
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -182,6 +216,7 @@
         link.click();
         link.remove();
         window.URL.revokeObjectURL(url);
+
 
         setProgress(100, 'Hoàn tất ✓');
         setStatus('🎉 Gộp xong! File đang được tải xuống.', 'success');
@@ -207,6 +242,13 @@
       }
       submitBtn.disabled = false;
       submitBtn.textContent = 'Gộp & tải xuống';
+
+        setStatus('🎉 Gộp xong! File đang được tải xuống.', 'success');
+      } catch (error) {
+        console.error(error);
+        setStatus('Có lỗi xảy ra khi gọi API.', 'error');
+      }
+
     }
 
     form.addEventListener('submit', handleSubmit);
