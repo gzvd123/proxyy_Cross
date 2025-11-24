@@ -18,7 +18,11 @@
 
           <p class="lead">Upload toàn bộ file Excel có chứa <code>{{ config.file_pattern }}</code>, hệ thống sẽ gộp và chuẩn hoá cột cho bạn với trải nghiệm UI cấp tập đoàn.</p>
 
+
+          <p class="lead">Upload toàn bộ file Excel có chứa <code>{{ config.file_pattern }}</code>, hệ thống sẽ gộp và chuẩn hoá cột cho bạn với trải nghiệm UI cấp tập đoàn.</p>
+
           <p class="lead">Upload toàn bộ file Excel có chứa <code>{{ config.file_pattern }}</code>, hệ thống sẽ gộp và chuẩn hoá cột cho bạn.</p>
+
 
         </div>
       </div>
@@ -38,20 +42,29 @@
       <div class="card-header">
         <h2>Tải file lên &amp; gộp</h2>
 
+
+
+
         <p>Chúng tôi tự động bỏ qua file tạm (~$), thêm cột còn thiếu với giá trị trống và hiển thị báo cáo sau khi gộp.</p>
       </div>
       <form id="upload-form" class="uploader" enctype="multipart/form-data">
         <label class="dropzone" for="file-input" id="dropzone">
+
+
 
         <p>Chúng tôi tự động bỏ qua file tạm (~$) và thêm cột còn thiếu với giá trị trống.</p>
       </div>
       <form id="upload-form" class="uploader" enctype="multipart/form-data">
         <label class="dropzone" for="file-input">
 
+
           <input id="file-input" type="file" name="files" accept=".xlsx,.xls" multiple>
           <div class="dropzone-copy">
             <p class="headline">Kéo thả hoặc chọn file Excel</p>
             <p class="sub">Hỗ trợ nhiều file cùng lúc • Tự động nhận biết sheet "{{ config.sheet_name }}"</p>
+
+
+
 
             <div class="pill">Kéo thả hàng loạt • Không giới hạn số lượng</div>
           </div>
@@ -72,6 +85,29 @@
           </div>
         </div>
 
+
+        <div class="file-table" aria-live="polite">
+          <div class="table-head">
+            <p class="label">Danh sách file</p>
+            <p class="muted">Bạn có thể kéo thêm hoặc xoá bớt từng file bên dưới.</p>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Tên file</th>
+                <th class="right">Dung lượng</th>
+                <th class="right">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="file-table-body">
+              <tr><td colspan="4" class="muted">Chưa có file nào được chọn.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+
+
         <div class="progress" id="progress">
           <div class="progress-bar" id="progress-bar"></div>
           <div class="progress-label" id="progress-label">Chưa bắt đầu</div>
@@ -79,9 +115,12 @@
 
         <button type="submit" class="primary" id="submit-btn">Gộp &amp; tải xuống</button>
 
+
+
           </div>
         </label>
         <button type="submit" class="primary">Gộp &amp; tải xuống</button>
+
 
       </form>
       <div id="status" class="status" aria-live="polite"></div>
@@ -96,7 +135,10 @@
     const form = document.getElementById('upload-form');
     const fileInput = document.getElementById('file-input');
     const statusBox = document.getElementById('status');
+
+
 nhance-program-with-gui-and-branding-i1d98m
+
     const dropzone = document.getElementById('dropzone');
     const fileCountEl = document.getElementById('file-count');
     const fileSizeEl = document.getElementById('file-size');
@@ -106,11 +148,20 @@ nhance-program-with-gui-and-branding-i1d98m
     const progressLabel = document.getElementById('progress-label');
     const submitBtn = document.getElementById('submit-btn');
 
+    const fileTableBody = document.getElementById('file-table-body');
+
+    const fileBag = new Map();
+
+
+
 
     function setStatus(message, tone = 'info') {
       statusBox.textContent = message;
       statusBox.dataset.tone = tone;
     }
+
+
+
 
 
     function humanFileSize(bytes) {
@@ -121,6 +172,51 @@ nhance-program-with-gui-and-branding-i1d98m
       return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[exponent]}`;
     }
 
+
+    function syncFileInput() {
+      const dataTransfer = new DataTransfer();
+      fileBag.forEach((file) => dataTransfer.items.add(file));
+      fileInput.files = dataTransfer.files;
+      updateFileStats();
+      renderFileTable();
+    }
+
+    function updateFileStats() {
+      const list = Array.from(fileBag.values());
+      const totalSize = list.reduce((sum, f) => sum + f.size, 0);
+      fileCountEl.textContent = `${list.length} file`;
+      fileSizeEl.textContent = humanFileSize(totalSize);
+      fileNamesEl.textContent = list.length ? list.map((f) => f.name).join(', ') : 'Chưa có file nào';
+    }
+
+    function renderFileTable() {
+      fileTableBody.innerHTML = '';
+      if (!fileBag.size) {
+        fileTableBody.innerHTML = '<tr><td colspan="3" class="muted">Chưa có file nào được chọn.</td></tr>';
+        return;
+      }
+      Array.from(fileBag.entries()).forEach(([key, file], index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${index + 1}</td>
+          <td>${file.name}</td>
+          <td class="right">${humanFileSize(file.size)}</td>
+          <td class="right"><button type="button" class="ghost" data-key="${key}">Xoá</button></td>
+        `;
+        fileTableBody.appendChild(row);
+      });
+    }
+
+    fileTableBody.addEventListener('click', (event) => {
+      const target = event.target;
+      if (target instanceof HTMLButtonElement && target.dataset.key) {
+        fileBag.delete(target.dataset.key);
+        syncFileInput();
+        setStatus('Đã xoá file khỏi danh sách.', 'warn');
+      }
+    });
+
+
     function updateFileStats(files) {
       const list = Array.from(files);
       const totalSize = list.reduce((sum, f) => sum + f.size, 0);
@@ -129,10 +225,21 @@ nhance-program-with-gui-and-branding-i1d98m
       fileNamesEl.textContent = list.length ? list.map(f => f.name).join(', ') : 'Chưa có file nào';
     }
 
+
     function setProgress(value, label) {
       progressBar.style.width = `${value}%`;
       progressLabel.textContent = label;
     }
+
+
+    function addFiles(files) {
+      if (!files || !files.length) return;
+      Array.from(files).forEach((file) => {
+        const key = `${file.name}|${file.size}`;
+        fileBag.set(key, file);
+      });
+      syncFileInput();
+      setStatus(`${fileBag.size} file đã sẵn sàng.`, 'info');
 
     function handleFiles(files) {
       if (!files || !files.length) return;
@@ -143,6 +250,7 @@ nhance-program-with-gui-and-branding-i1d98m
       fileInput.files = dataTransfer.files;
       updateFileStats(fileInput.files);
       setStatus(`${fileInput.files.length} file đã sẵn sàng.`, 'info');
+
     }
 
     dropzone.addEventListener('dragover', (event) => {
@@ -157,6 +265,33 @@ nhance-program-with-gui-and-branding-i1d98m
     dropzone.addEventListener('drop', (event) => {
       event.preventDefault();
       dropzone.classList.remove('dragging');
+
+      addFiles(event.dataTransfer.files);
+    });
+
+    fileInput.addEventListener('change', (event) => {
+      addFiles(event.target.files);
+    });
+
+    function resetProgress() {
+      setProgress(0, 'Chưa bắt đầu');
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    }
+
+    async function handleSubmit(event) {
+      event.preventDefault();
+      if (!fileBag.size) {
+
       handleFiles(event.dataTransfer.files);
     });
 
@@ -169,8 +304,86 @@ nhance-program-with-gui-and-branding-i1d98m
     async function handleSubmit(event) {
       event.preventDefault();
       if (!fileInput.files.length) {
+
         setStatus('Vui lòng chọn ít nhất một file Excel.', 'warn');
         return;
+      }
+
+
+      const formData = new FormData();
+      fileBag.forEach((file) => formData.append('files', file));
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Đang gộp...';
+      setStatus('Đang tải lên và gộp... ⏳', 'info');
+      setProgress(10, 'Đang khởi động');
+
+      try {
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/api/merge');
+        xhr.responseType = 'blob';
+
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percent = Math.min(50, Math.round((event.loaded / event.total) * 50));
+            setProgress(percent, 'Đang tải lên');
+          }
+        };
+
+        xhr.onreadystatechange = () => {
+          if (xhr.readyState !== XMLHttpRequest.DONE) return;
+
+          if (xhr.status >= 400) {
+            try {
+              const payload = JSON.parse(xhr.responseText);
+              setStatus(payload.error || 'Có lỗi xảy ra khi gộp file.', 'error');
+            } catch (_) {
+              setStatus('Có lỗi xảy ra khi gộp file.', 'error');
+            }
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Gộp & tải xuống';
+            resetProgress();
+            return;
+          }
+
+          setProgress(70, 'Đang xử lý dữ liệu');
+          const disposition = xhr.getResponseHeader('Content-Disposition') || '';
+          const match = disposition.match(/filename="?([^";]+)"?/i);
+          const filename = (match && match[1]) || '{{ config.output_filename }}';
+          const blob = xhr.response;
+          setProgress(90, 'Đang tạo file kết quả');
+          downloadBlob(blob, filename);
+          setProgress(100, 'Hoàn tất ✓');
+          setStatus('🎉 Gộp xong! File đang được tải xuống.', 'success');
+
+          const summaryHeader = xhr.getResponseHeader('X-Merge-Report');
+          if (summaryHeader) {
+            try {
+              const summary = JSON.parse(summaryHeader);
+              const report = [
+                `Đã gộp ${summary.file_count} file`,
+                `${summary.total_rows} dòng dữ liệu`,
+                'Chi tiết: ' + summary.details
+                  .map((d) => `${d.file}${d.rows ? ` (${d.rows} dòng)` : ''}${d.missing_columns?.length ? ` thiếu: ${d.missing_columns.join(', ')}` : ''}${d.error ? ` lỗi: ${d.error}` : ''}`)
+                  .join(' • '),
+              ].join(' • ');
+              setStatus(`📊 ${report}`, 'success');
+            } catch (error) {
+              console.warn('Failed to parse summary header', error);
+            }
+          }
+
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Gộp & tải xuống';
+        };
+
+        xhr.send(formData);
+      } catch (error) {
+        console.error(error);
+        setStatus('Có lỗi xảy ra khi gọi API.', 'error');
+        resetProgress();
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Gộp & tải xuống';
       }
 
       setStatus('Đang tải lên và gộp... ⏳', 'info');
@@ -248,6 +461,7 @@ nhance-program-with-gui-and-branding-i1d98m
         console.error(error);
         setStatus('Có lỗi xảy ra khi gọi API.', 'error');
       }
+
 
     }
 
