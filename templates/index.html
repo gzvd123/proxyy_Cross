@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Inventory Merge Studio</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div class="brand">
+        <img src="{{ url_for('static', filename='logo.svg') }}" alt="Inventory Merge Studio" class="logo">
+        <div>
+          <p class="eyebrow">Inventory Merge Studio</p>
+          <h1>Gộp nhanh các báo cáo tồn kho</h1>
+          <p class="lead">Upload toàn bộ file Excel có chứa <code>{{ config.file_pattern }}</code>, hệ thống sẽ gộp và chuẩn hoá cột cho bạn.</p>
+        </div>
+      </div>
+      <div class="hero-meta">
+        <div class="meta-card">
+          <p class="label">Sheet</p>
+          <p class="value">{{ config.sheet_name }}</p>
+        </div>
+        <div class="meta-card">
+          <p class="label">Cột cần có</p>
+          <p class="value columns">{{ columns|join(', ') }}</p>
+        </div>
+      </div>
+    </header>
+
+    <main class="card">
+      <div class="card-header">
+        <h2>Tải file lên &amp; gộp</h2>
+        <p>Chúng tôi tự động bỏ qua file tạm (~$) và thêm cột còn thiếu với giá trị trống.</p>
+      </div>
+      <form id="upload-form" class="uploader" enctype="multipart/form-data">
+        <label class="dropzone" for="file-input">
+          <input id="file-input" type="file" name="files" accept=".xlsx,.xls" multiple>
+          <div class="dropzone-copy">
+            <p class="headline">Kéo thả hoặc chọn file Excel</p>
+            <p class="sub">Hỗ trợ nhiều file cùng lúc • Tự động nhận biết sheet "{{ config.sheet_name }}"</p>
+          </div>
+        </label>
+        <button type="submit" class="primary">Gộp &amp; tải xuống</button>
+      </form>
+      <div id="status" class="status" aria-live="polite"></div>
+    </main>
+
+    <section class="footer">
+      <p>Build with ❤️ cho đội vận hành. Kết quả sẽ được tải xuống dưới dạng <strong>{{ config.output_filename }}</strong>.</p>
+    </section>
+  </div>
+
+  <script>
+    const form = document.getElementById('upload-form');
+    const fileInput = document.getElementById('file-input');
+    const statusBox = document.getElementById('status');
+
+    function setStatus(message, tone = 'info') {
+      statusBox.textContent = message;
+      statusBox.dataset.tone = tone;
+    }
+
+    async function handleSubmit(event) {
+      event.preventDefault();
+      if (!fileInput.files.length) {
+        setStatus('Vui lòng chọn ít nhất một file Excel.', 'warn');
+        return;
+      }
+      setStatus('Đang xử lý... ⏳', 'info');
+      const formData = new FormData();
+      for (const file of fileInput.files) {
+        formData.append('files', file);
+      }
+
+      try {
+        const response = await fetch('/api/merge', { method: 'POST', body: formData });
+        if (!response.ok) {
+          const payload = await response.json();
+          setStatus(payload.error || 'Có lỗi xảy ra khi gộp file.', 'error');
+          return;
+        }
+
+        const blob = await response.blob();
+        const filename = response.headers.get('Content-Disposition')?.split('filename=')[1]?.replace(/"/g, '') || '{{ config.output_filename }}';
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+
+        setStatus('🎉 Gộp xong! File đang được tải xuống.', 'success');
+      } catch (error) {
+        console.error(error);
+        setStatus('Có lỗi xảy ra khi gọi API.', 'error');
+      }
+    }
+
+    form.addEventListener('submit', handleSubmit);
+  </script>
+</body>
+</html>
